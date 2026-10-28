@@ -1,0 +1,118 @@
+{
+  "total_records": 768,
+  "total_features": 8,
+  "features": [
+    "Pregnancies",
+    "Glucose",
+    "BloodPressure",
+    "SkinThickness",
+    "Insulin",
+    "BMI",
+    "DiabetesPedigreeFunction",
+    "Age"
+  ],
+  "target_column": "Outcome",
+  "classes": {
+    "0": "Diabetes-negative",
+    "1": "Diabetes-positive"
+  },
+  "outcome_counts": {
+    "negative": 500,
+    "positive": 268
+  },
+  "preview_rows": [
+    {
+      "Pregnancies": 6,
+      "Glucose": 148,
+      "BloodPressure": 72,
+      "SkinThickness": 35,
+      "Insulin": 0,
+      "BMI": 33.6,
+      "DiabetesPedigreeFunction": 0.627,
+      "Age": 50,
+      "Outcome": 1
+    },
+    {
+      "Pregnancies": 1,
+      "Glucose": 85,
+      "BloodPressure": 66,
+      "SkinThickness": 29,
+      "Insulin": 0,
+      "BMI": 26.6,
+      "DiabetesPedigreeFunction": 0.351,
+      "Age": 31,
+      "Outcome": 0
+    },
+    {
+      "Pregnancies": 8,
+      "Glucose": 183,
+      "BloodPressure": 64,
+      "SkinThickness": 0,
+      "Insulin": 0,
+      "BMI": 23.3,
+      "DiabetesPedigreeFunction": 0.672,
+      "Age": 32,
+      "Outcome": 1
+    },
+    {
+      "Pregnancies": 1,
+      "Glucose": 89,
+      "BloodPressure": 66,
+      "SkinThickness": 23,
+      "Insulin": 94,
+      "BMI": 28.1,
+      "DiabetesPedigreeFunction": 0.167,
+      "Age": 21,
+      "Outcome": 0
+    },
+    {
+      "Pregnancies": 0,
+      "Glucose": 137,
+      "BloodPressure": 40,
+      "SkinThickness": 35,
+      "Insulin": 168,
+      "BMI": 43.1,
+      "DiabetesPedigreeFunction": 2.288,
+      "Age": 33,
+      "Outcome": 1
+    },
+    {
+      "Pregnancies": 5,
+      "Glucose": 116,
+      "BloodPressure": 74,
+      "SkinThickness": 0,
+      "Insulin": 0,
+      "BMI": 25.6,
+      "DiabetesPedigreeFunction": 0.201,
+      "Age": 30,
+      "Outcome": 0
+    }
+  ],
+  "zero_invalid_summary": {
+    "Glucose": {
+      "count": 5,
+      "percentage": 0.65,
+      "median_excluding_zeros": 117.0
+    },
+    "BloodPressure": {
+      "count": 35,
+      "percentage": 4.56,
+      "median_excluding_zeros": 72.0
+    },
+    "SkinThickness": {
+      "count": 227,
+      "percentage": 29.56,
+      "median_excluding_zeros": 29.0
+    },
+    "Insulin": {
+      "count": 374,
+      "percentage": 48.7,
+      "median_excluding_zeros": 125.0
+    },
+    "BMI": {
+      "count": 11,
+      "percentage": 1.43,
+      "median_excluding_zeros": 32.3
+    }
+  }
+}

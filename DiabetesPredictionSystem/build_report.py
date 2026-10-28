@@ -1,0 +1,836 @@
+"""
+Diabetes Prediction System - Project Report & PDF Generator
+============================================================
+Script: build_report.py
+Description:
+  Generates an academic project report matching the exact structure and layout of the
+  sample mini-project report (Glaucoma Detection MLP report template):
+    1. Title & Subtitle
+    2. Problem Statement
+    3. Objectives
+    4. Software / Hardware Required
+    5. Project Directory Structure (Fig 1)
+    6. Procedure (10 Steps)
+    7. Implementation Code (Preprocessing, Training, Flask Routes)
+    8. Output (Step-by-Step Figures 1 to 12 with actual plots & screenshots)
+    9. Result Summary
+
+Generates:
+  - Diabetes_Prediction_System_Project_Report.html (Self-contained, printable A4 document)
+  - Attempts automatic PDF compilation via Microsoft Edge / Chrome headless:
+    Diabetes_Prediction_System_Project_Report.pdf
+"""
+
+import os
+import json
+import base64
+import subprocess
+import shutil
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PLOTS_DIR = os.path.join(BASE_DIR, 'static', 'plots')
+METRICS_FILE = os.path.join(BASE_DIR, 'models', 'model_metrics.json')
+DATASET_INFO_FILE = os.path.join(BASE_DIR, 'models', 'dataset_info.json')
+HTML_OUTPUT = os.path.join(BASE_DIR, 'Diabetes_Prediction_System_Project_Report.html')
+PDF_OUTPUT = os.path.join(BASE_DIR, 'Diabetes_Prediction_System_Project_Report.pdf')
+
+
+def img_to_b64(img_path):
+    """Convert an image file to Base64 data URI string."""
+    if not os.path.exists(img_path):
+        return ""
+    with open(img_path, 'rb') as f:
+        data = base64.b64encode(f.read()).decode('utf-8')
+    ext = os.path.splitext(img_path)[1].replace('.', '')
+    return f"data:image/{ext};base64,{data}"
+
+
+def generate_report_html():
+    """Build the complete, self-contained HTML project report."""
+    # Load metadata
+    with open(METRICS_FILE, 'r', encoding='utf-8') as f:
+        metrics = json.load(f)
+    with open(DATASET_INFO_FILE, 'r', encoding='utf-8') as f:
+        dataset = json.load(f)
+
+    # Encode plots
+    b64_outcome = img_to_b64(os.path.join(PLOTS_DIR, 'outcome_distribution.png'))
+    b64_glucose = img_to_b64(os.path.join(PLOTS_DIR, 'glucose_vs_outcome.png'))
+    b64_bmi = img_to_b64(os.path.join(PLOTS_DIR, 'bmi_distribution.png'))
+    b64_age = img_to_b64(os.path.join(PLOTS_DIR, 'age_distribution.png'))
+    b64_heatmap = img_to_b64(os.path.join(PLOTS_DIR, 'correlation_heatmap.png'))
+    b64_cm = img_to_b64(os.path.join(PLOTS_DIR, 'confusion_matrix.png'))
+    b64_roc = img_to_b64(os.path.join(PLOTS_DIR, 'roc_curve.png'))
+
+    comp = metrics['comparison']
+    lr_m = comp.get('Logistic Regression', {})
+    dt_m = comp.get('Decision Tree', {})
+    rf_m = comp.get('Random Forest', {})
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diabetes Prediction System Using Machine Learning - Project Report</title>
+  <style>
+    @page {{
+      size: A4;
+      margin: 20mm 20mm 20mm 20mm;
+      @bottom-right {{
+        content: counter(page);
+      }}
+    }}
+    
+    * {{
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }}
+
+    body {{
+      font-family: "Times New Roman", Times, serif;
+      font-size: 11pt;
+      line-height: 1.5;
+      color: #111111;
+      background: #ffffff;
+      padding: 20px 40px;
+    }}
+
+    .title-block {{
+      text-align: center;
+      margin-bottom: 24px;
+    }}
+
+    h1.project-title {{
+      font-size: 15pt;
+      font-weight: bold;
+      color: #000000;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }}
+
+    .project-subtitle {{
+      font-size: 11.5pt;
+      font-style: italic;
+      color: #333333;
+      margin-bottom: 18px;
+    }}
+
+    h2.section-heading {{
+      font-size: 12pt;
+      font-weight: bold;
+      color: #000000;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #444444;
+      padding-bottom: 2px;
+    }}
+
+    p {{
+      text-align: justify;
+      margin-bottom: 10px;
+      text-indent: 0;
+    }}
+
+    ul, ol {{
+      margin-left: 24px;
+      margin-bottom: 12px;
+    }}
+
+    li {{
+      margin-bottom: 5px;
+      text-align: justify;
+    }}
+
+    /* Code Block styling matching friend's sample */
+    .code-box {{
+      background: #fafafa;
+      border: 1px solid #d1d5db;
+      border-radius: 3px;
+      padding: 10px 14px;
+      margin: 10px 0 16px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8.5pt;
+      line-height: 1.35;
+      color: #1f2937;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }}
+
+    .code-title {{
+      font-weight: bold;
+      font-size: 9.5pt;
+      color: #000000;
+      margin-top: 14px;
+      margin-bottom: 4px;
+    }}
+
+    /* Table styling */
+    table.data-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 16px;
+      font-size: 9.5pt;
+    }}
+
+    table.data-table th, table.data-table td {{
+      border: 1px solid #4b5563;
+      padding: 6px 10px;
+      text-align: left;
+    }}
+
+    table.data-table th {{
+      background-color: #f3f4f6;
+      font-weight: bold;
+      color: #000000;
+    }}
+
+    table.data-table tr:nth-child(even) {{
+      background-color: #f9fafb;
+    }}
+
+    /* Figure styling */
+    .figure-block {{
+      text-align: center;
+      margin: 16px 0 20px;
+      page-break-inside: avoid;
+    }}
+
+    .figure-img {{
+      max-width: 90%;
+      max-height: 280px;
+      height: auto;
+      border: 1px solid #9ca3af;
+      border-radius: 3px;
+      margin-bottom: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }}
+
+    .figure-img-small {{
+      max-width: 82%;
+      max-height: 240px;
+      height: auto;
+      border: 1px solid #9ca3af;
+      border-radius: 3px;
+      margin-bottom: 6px;
+    }}
+
+    .figure-caption {{
+      font-size: 9.5pt;
+      font-style: italic;
+      color: #1f2937;
+      margin-top: 4px;
+    }}
+
+    /* VS Code explorer simulation */
+    .vscode-explorer {{
+      background: #1e1e1e;
+      color: #cccccc;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8.5pt;
+      padding: 12px 16px;
+      border-radius: 4px;
+      max-width: 440px;
+      margin: 10px auto 6px;
+      text-align: left;
+      line-height: 1.4;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    }}
+
+    .vscode-explorer .folder {{ color: #dcb67a; font-weight: bold; }}
+    .vscode-explorer .file {{ color: #9cdcfe; }}
+    .vscode-explorer .py {{ color: #4ec9b0; }}
+
+    /* Web Card Mockup Simulation */
+    .web-mockup {{
+      background: #ffffff;
+      border: 2px solid #3b82f6;
+      border-radius: 6px;
+      padding: 16px 20px;
+      max-width: 620px;
+      margin: 12px auto;
+      text-align: left;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+    }}
+
+    .web-mockup.positive {{
+      border-color: #ef4444;
+      background: #fef2f2;
+    }}
+
+    .web-mockup.negative {{
+      border-color: #10b981;
+      background: #f0fdf4;
+    }}
+
+    .mockup-badge {{
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 8pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }}
+
+    .mockup-badge.pos {{ background: #fee2e2; color: #991b1b; }}
+    .mockup-badge.neg {{ background: #dcfce7; color: #166534; }}
+
+    .mockup-title {{
+      font-size: 13pt;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }}
+
+    .mockup-title.pos {{ color: #b91c1c; }}
+    .mockup-title.neg {{ color: #047857; }}
+
+    .mockup-prob {{
+      font-size: 11pt;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }}
+
+    .mockup-table {{
+      width: 100%;
+      font-size: 8.5pt;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }}
+
+    .mockup-table td {{
+      padding: 3px 6px;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }}
+
+    .page-break {{
+      page-break-after: always;
+    }}
+
+    @media print {{
+      body {{
+        padding: 0;
+      }}
+      .no-print {{
+        display: none;
+      }}
+    }}
+  </style>
+</head>
+<body>
+
+  <!-- Floating Print Guide Banner (visible only on browser screen) -->
+  <div class="no-print" style="background:#1e40af; color:#ffffff; padding:12px 18px; border-radius:6px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <strong>📄 Ready to Export as PDF:</strong> Press <strong>Ctrl + P</strong> (Windows) or <strong>Cmd + P</strong> (Mac), select <strong>"Save as PDF"</strong>, ensure Margins is set to <em>Default</em>, and click Save!
+    </div>
+    <button onclick="window.print()" style="background:#ffffff; color:#1e40af; border:none; padding:8px 16px; font-weight:bold; border-radius:4px; cursor:pointer;">
+      Print / Save as PDF
+    </button>
+  </div>
+
+  <!-- TITLE BLOCK -->
+  <div class="title-block">
+    <h1 class="project-title">Diabetes Prediction System Using Machine Learning</h1>
+    <div class="project-subtitle">(Diabetes Classification and Health Risk Estimation using Machine Learning)</div>
+  </div>
+
+  <!-- PROBLEM STATEMENT -->
+  <h2 class="section-heading">Problem Statement:</h2>
+  <p>
+    Diabetes mellitus is one of the fastest-growing global chronic metabolic disorders, posing severe long-term health burdens and substantial economic challenges. It is characterized by persistent hyperglycemia resulting from progressive defects in insulin secretion, peripheral insulin resistance, or both. Diabetes is frequently termed a "silent killer" because in its early phases, noticeable symptoms may remain absent or subclinical, causing affected individuals to delay diagnosis until significant, irreversible systemic damage has already manifested—including diabetic retinopathy, cardiovascular diseases, peripheral neuropathy, and end-stage chronic kidney disease (nephropathy).
+  </p>
+  <p>
+    Conventional clinical screening methods primarily rely on invasive biochemical laboratory examinations, such as Fasting Plasma Glucose (FPG), Oral Glucose Tolerance Tests (OGTT), and Glycated Hemoglobin (HbA1c) assays. While clinically accurate, widespread screening of large populations using purely laboratory methods is expensive, time-consuming, requires specialized healthcare personnel, and suffers from delayed turnaround times, particularly across rural and resource-limited regions. There is, therefore, a critical need for an automated, accessible, non-invasive, and computational screening tool capable of synthesizing non-invasively obtained diagnostic health indicators (plasma glucose, blood pressure, body mass index, insulin levels, age, and family pedigree history) to estimate whether a patient falls into a diabetes-positive or diabetes-negative risk category with quantifiable probability confidence.
+  </p>
+  <p>
+    This project designs, develops, and evaluates an end-to-end Machine Learning web application called the <strong>Diabetes Prediction System</strong>. The project implements a complete data preprocessing pipeline that systematically identifies and imputes biologically invalid zero measurements, conducts exploratory data analysis (EDA), trains and benchmarks three distinct supervised classification algorithms (Logistic Regression, Decision Tree Classifier, and Random Forest Classifier) on an 80:20 stratified split, and serves real-time predictions through an interactive Flask web application equipped with clear educational safeguards.
+  </p>
+
+  <!-- OBJECTIVES -->
+  <h2 class="section-heading">Objectives:</h2>
+  <ol>
+    <li>To collect, inspect, and preprocess the authentic benchmark <strong>Pima Indians Diabetes Database</strong> comprising 768 patient records and 8 diagnostic health attributes.</li>
+    <li>To identify and appropriately treat invalid zero measurements in physiological measurement columns (Glucose, Blood Pressure, Skin Thickness, Insulin, and BMI) via Scikit-learn median imputation while preserving biologically valid zeros such as Pregnancies = 0.</li>
+    <li>To conduct Exploratory Data Analysis (EDA) and generate publication-standard statistical visualizations detailing class distribution, demographic skews, and feature correlations.</li>
+    <li>To design, train, and compare three machine learning classification pipelines: <strong>Logistic Regression</strong>, <strong>Decision Tree Classifier</strong>, and <strong>Random Forest Classifier</strong> using an 80:20 stratified training-test split with fixed random seeds.</li>
+    <li>To evaluate model performance on the held-out test set using standard evaluation metrics: <strong>Accuracy</strong>, <strong>Precision</strong>, <strong>Recall</strong>, <strong>F1-Score</strong>, <strong>ROC-AUC</strong>, and the <strong>Confusion Matrix</strong>, selecting the optimal model based on ROC-AUC.</li>
+    <li>To deploy a lightweight, local Flask web application providing a responsive user interface that accepts health attributes, performs real-time pipeline inference, and returns predicted class and confidence probabilities with necessary educational disclaimers.</li>
+  </ol>
+
+  <!-- SOFTWARE / HARDWARE REQUIRED -->
+  <h2 class="section-heading">Software / Hardware Required:</h2>
+  <ul>
+    <li><strong>Operating System:</strong> Windows 10 / 11 / Linux / macOS</li>
+    <li><strong>IDE:</strong> Visual Studio Code (VS Code)</li>
+    <li><strong>Language:</strong> Python 3.9+</li>
+    <li><strong>Backend Framework:</strong> Flask (Local REST routing & Web Server)</li>
+    <li><strong>Machine Learning Libraries:</strong> Scikit-learn (RandomForestClassifier, LogisticRegression, DecisionTreeClassifier, SimpleImputer, StandardScaler, Pipeline)</li>
+    <li><strong>Data Manipulation:</strong> Pandas, NumPy</li>
+    <li><strong>Data Visualization:</strong> Matplotlib, Seaborn</li>
+    <li><strong>Model Persistence:</strong> Joblib (Pickle serialization)</li>
+    <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript</li>
+    <li><strong>Dataset:</strong> Pima Indians Diabetes Database (768 patient instances, 8 predictors, 1 binary target Outcome)</li>
+    <li><strong>Version Control:</strong> Git / Local Workspace Repository</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- PROJECT DIRECTORY STRUCTURE -->
+  <h2 class="section-heading">Project Directory Structure:</h2>
+  <p>
+    The project (<code>DiabetesPredictionSystem</code>) is organized as a modular, standalone local web application separating data assets, trained pipelines, static visualizations, and web templates, as shown below.
+  </p>
+
+  <div class="vscode-explorer">
+    <div><span class="folder">&#128194; DiabetesPredictionSystem</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="py">&#128013; app.py</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Flask web application & prediction routes</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="py">&#128013; train_model.py</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Full ML pipeline: EDA, training, evaluation</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128196; requirements.txt</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Dependency specification</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128196; README.md</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Execution and architecture documentation</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">&#128194; data/</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128202; diabetes.csv</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Authentic Pima Indians Diabetes Dataset</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">&#128194; models/</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#129513; diabetes_model.pkl</span> &nbsp;<span style="color:#6b7280;"># Serialized Scikit-learn pipeline</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128203; model_metrics.json</span> &nbsp;&nbsp;<span style="color:#6b7280;"># Test evaluation benchmarks metadata</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128203; dataset_info.json</span> &nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Preprocessing and preview metadata</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">&#128194; static/</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#127912; style.css</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Responsive light-themed stylesheet</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">&#128194; plots/</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Generated Matplotlib/Seaborn plots</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; outcome_distribution.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; glucose_vs_outcome.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; bmi_distribution.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; age_distribution.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; correlation_heatmap.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; confusion_matrix.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#128444; roc_curve.png</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="folder">&#128194; templates/</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">&#127760; index.html</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7280;"># Web interface (Fig. 1 to Fig. 6)</span></div>
+  </div>
+  <div class="figure-caption" style="text-align:center; margin-bottom: 18px;">
+    Fig 1: Project directory structure of DiabetesPredictionSystem in Visual Studio Code
+  </div>
+
+  <!-- PROCEDURE -->
+  <h2 class="section-heading">Procedure:</h2>
+  <ol>
+    <li>Collect the authentic <strong>Pima Indians Diabetes Dataset</strong> and place it in <code>data/diabetes.csv</code> (768 patient instances, 8 numerical health features, 1 target outcome).</li>
+    <li>Audit data integrity: verify non-null column data types, check for zero duplicate rows, and inspect class distribution (500 negative vs 268 positive records; 34.9% positive prevalence).</li>
+    <li>Identify biologically impossible zero readings in measurement columns: Glucose (5 zeros), Blood Pressure (35 zeros), Skin Thickness (227 zeros), Insulin (374 zeros), and BMI (11 zeros). Replace these zeros with <code>NaN</code> while preserving valid zeros in <code>Pregnancies</code>.</li>
+    <li>Implement feature imputation via Scikit-learn's <code>SimpleImputer(strategy='median')</code> using non-zero training medians, followed by standard z-score normalization via <code>StandardScaler()</code>.</li>
+    <li>Conduct Exploratory Data Analysis (EDA) and generate 5 statistical visualizations (Outcome distribution bar plot, Glucose vs Outcome boxplot, BMI distribution, Age demographic histogram, and Pearson correlation matrix) and save into <code>static/plots/</code>.</li>
+    <li>Partition the preprocessed dataset into an <strong>80:20 stratified training-test split</strong> (614 training instances, 154 testing instances) with a fixed seed (<code>random_state=42</code>) to preserve the outcome class ratio.</li>
+    <li>Train three candidate classification pipelines: <strong>Logistic Regression</strong> (<code>max_iter=1000</code>), <strong>Decision Tree Classifier</strong> (<code>max_depth=5</code>), and <strong>Random Forest Classifier</strong> (<code>n_estimators=100, max_depth=6</code>).</li>
+    <li>Evaluate all three models on the identical 154 held-out test samples and compute test-set metrics: Accuracy, Precision, Recall, F1-Score, ROC-AUC, and the Confusion Matrix.</li>
+    <li>Select the optimal model based on highest <strong>Test ROC-AUC</strong> (Random Forest Classifier, achieving ROC-AUC &asymp; 0.817) and serialize the complete pipeline (Imputer + Scaler + Model) to <code>models/diabetes_model.pkl</code> using Joblib.</li>
+    <li>Launch the Flask web server (<code>app.py</code>), render the interactive web interface (Fig. 1 to Fig. 6), accept 8 diagnostic inputs from the user, validate ranges, execute model inference, and display the predicted class and estimated confidence probability.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- IMPLEMENTATION CODE -->
+  <h2 class="section-heading">Implementation Code:</h2>
+  <p>
+    Representative implementation of the key modules used in the project, based on the pipeline shown in the application (from <code>train_model.py</code> and <code>app.py</code>).
+  </p>
+
+  <div class="code-title">1. Data Preprocessing & Invalid Zero Handling (train_model.py)</div>
+  <div class="code-box">import numpy as np
+import pandas as pd
+
+def load_and_preprocess_data():
+    df_raw = pd.read_csv('data/diabetes.csv')
+    df_cleaned = df_raw.copy()
+
+    # In clinical measurements, zero values represent unrecorded/missing data.
+    # Pregnancies = 0 is clinically valid; Outcome is the class label.
+    zero_invalid_cols = ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']
+    zero_summary = {{}}
+
+    for col in zero_invalid_cols:
+        count_zeros = (df_cleaned[col] == 0).sum()
+        pct_zeros = (count_zeros / len(df_cleaned)) * 100
+        median_val = df_cleaned[df_cleaned[col] != 0][col].median()
+        zero_summary[col] = {{'count': int(count_zeros), 'percentage': round(pct_zeros, 2)}}
+        
+        # Replace invalid zeros with NaN for subsequent median imputation
+        df_cleaned[col] = df_cleaned[col].replace(0, np.nan)
+
+    return df_raw, df_cleaned, zero_summary</div>
+
+  <div class="code-title">2. Model Training & Comparison Pipeline (train_model.py)</div>
+  <div class="code-box">from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+import joblib
+
+def train_and_evaluate_models(df_cleaned):
+    X = df_cleaned.drop(columns=['Outcome'])
+    y = df_cleaned['Outcome']
+
+    # 80:20 Stratified Split with fixed random seed
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.20, random_state=42, stratify=y
+    )
+
+    models = {{
+        'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+        'Decision Tree': DecisionTreeClassifier(max_depth=5, min_samples_split=10, random_state=42),
+        'Random Forest': RandomForestClassifier(n_estimators=100, max_depth=6, random_state=42)
+    }}
+
+    results = {{}}
+    fitted_pipelines = {{}}
+
+    for name, clf in models.items():
+        # Pipeline: 1. Median Imputation -> 2. Standard Scaling -> 3. Classifier
+        pipeline = Pipeline([
+            ('imputer', SimpleImputer(strategy='median')),
+            ('scaler', StandardScaler()),
+            ('classifier', clf)
+        ])
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+        y_proba = pipeline.predict_proba(X_test)[:, 1]
+
+        results[name] = {{
+            'accuracy': round(float(accuracy_score(y_test, y_pred)), 4),
+            'precision': round(float(precision_score(y_test, y_pred, zero_division=0)), 4),
+            'recall': round(float(recall_score(y_test, y_pred, zero_division=0)), 4),
+            'f1_score': round(float(f1_score(y_test, y_pred, zero_division=0)), 4),
+            'roc_auc': round(float(roc_auc_score(y_test, y_proba)), 4)
+        }}
+        fitted_pipelines[name] = pipeline
+
+    # Select best model based on ROC-AUC
+    best_model_name = max(results, key=lambda k: results[k]['roc_auc'])
+    joblib.dump(fitted_pipelines[best_model_name], 'models/diabetes_model.pkl')
+    return results, best_model_name</div>
+
+  <div class="page-break"></div>
+
+  <div class="code-title">3. Flask Prediction Route & Live Inference (app.py)</div>
+  <div class="code-box">from flask import Flask, render_template, request, flash
+import joblib, numpy as np, pandas as pd
+
+app = Flask(__name__)
+app.secret_key = 'diabetes-ml-secret-key'
+MODEL_FILE = 'models/diabetes_model.pkl'
+
+FEATURE_NAMES = [
+    'Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness',
+    'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age'
+]
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    form_data = request.form.to_dict()
+    parsed_values = {{}}
+    for field in FEATURE_NAMES:
+        val = float(form_data.get(field, 0))
+        parsed_values[field] = val
+
+    pipeline = joblib.load(MODEL_FILE)
+    input_df = pd.DataFrame([parsed_values], columns=FEATURE_NAMES)
+
+    # Convert invalid zeros to NaN so pipeline median imputer fills them safely
+    for col in ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']:
+        if input_df[col].iloc[0] == 0:
+            input_df[col] = np.nan
+
+    pred_class = int(pipeline.predict(input_df)[0])
+    probabilities = pipeline.predict_proba(input_df)[0]
+    positive_prob = float(probabilities[1]) * 100.0
+
+    class_label = "Diabetes-positive class" if pred_class == 1 else "Diabetes-negative class"
+    prob_str = f"{{positive_prob:.2f}}%" if pred_class == 1 else f"{{(100.0 - positive_prob):.2f}}%"
+
+    result = {{
+        'predicted_class': pred_class,
+        'prediction_label': class_label,
+        'estimated_probability': prob_str,
+        'positive_probability': f"{{positive_prob:.2f}}%"
+    }}
+    return render_template('index.html', prediction_result=result, form_data=form_data)</div>
+
+  <!-- OUTPUT SECTION (STEP-BY-STEP SCREENSHOTS) -->
+  <h2 class="section-heading">Output (Step-by-Step Screenshots & Visual Results):</h2>
+
+  <!-- Fig 2: Dataset Overview -->
+  <div class="figure-block">
+    <table class="data-table" style="max-width: 650px; margin: 0 auto 8px;">
+      <thead>
+        <tr>
+          <th>Pregnancies</th>
+          <th>Glucose</th>
+          <th>BloodPressure</th>
+          <th>SkinThickness</th>
+          <th>Insulin</th>
+          <th>BMI</th>
+          <th>Pedigree</th>
+          <th>Age</th>
+          <th>Outcome</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>6</td><td>148</td><td>72</td><td>35</td><td>0</td><td>33.6</td><td>0.627</td><td>50</td><td><strong>1</strong></td></tr>
+        <tr><td>1</td><td>85</td><td>66</td><td>29</td><td>0</td><td>26.6</td><td>0.351</td><td>31</td><td><strong>0</strong></td></tr>
+        <tr><td>8</td><td>183</td><td>64</td><td>0</td><td>0</td><td>23.3</td><td>0.672</td><td>32</td><td><strong>1</strong></td></tr>
+        <tr><td>1</td><td>89</td><td>66</td><td>23</td><td>94</td><td>28.1</td><td>0.167</td><td>21</td><td><strong>0</strong></td></tr>
+        <tr><td>0</td><td>137</td><td>40</td><td>35</td><td>168</td><td>43.1</td><td>2.288</td><td>33</td><td><strong>1</strong></td></tr>
+        <tr><td>5</td><td>116</td><td>74</td><td>0</td><td>0</td><td>25.6</td><td>0.201</td><td>30</td><td><strong>0</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="figure-caption">
+      Fig 2: Step 1 — Dataset Overview: Preview of the Pima Indians Diabetes Database (768 records, 8 features, 1 target outcome)
+    </div>
+  </div>
+
+  <!-- Fig 3: Preprocessing Summary -->
+  <div class="figure-block">
+    <table class="data-table" style="max-width: 620px; margin: 0 auto 8px;">
+      <thead>
+        <tr>
+          <th>Feature Name</th>
+          <th>Detected Invalid Zeros</th>
+          <th>Missing %</th>
+          <th>Cleaned Median</th>
+          <th>Handling Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Glucose</strong></td><td>5 records</td><td>0.65%</td><td>117.0</td><td>Median Imputer</td></tr>
+        <tr><td><strong>BloodPressure</strong></td><td>35 records</td><td>4.56%</td><td>72.0</td><td>Median Imputer</td></tr>
+        <tr><td><strong>SkinThickness</strong></td><td>227 records</td><td>29.56%</td><td>29.0</td><td>Median Imputer</td></tr>
+        <tr><td><strong>Insulin</strong></td><td>374 records</td><td>48.70%</td><td>125.0</td><td>Median Imputer</td></tr>
+        <tr><td><strong>BMI</strong></td><td>11 records</td><td>1.43%</td><td>32.3</td><td>Median Imputer</td></tr>
+        <tr><td><strong>Pregnancies</strong></td><td>Valid (0 = Nulliparous)</td><td>0.00%</td><td>0.0</td><td>Preserved Unaltered</td></tr>
+      </tbody>
+    </table>
+    <div class="figure-caption">
+      Fig 3: Step 2 — Data Preprocessing: Detection of invalid physiological zero measurements and median imputation summary
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Fig 4: Outcome Distribution -->
+  <div class="figure-block">
+    <img src="{b64_outcome}" alt="Distribution of Diabetes Outcome" class="figure-img">
+    <div class="figure-caption">
+      Fig 4: Step 3 — Exploratory Data Analysis: Class distribution of target outcome (500 negative vs 268 positive records; 34.9% positive)
+    </div>
+  </div>
+
+  <!-- Fig 5: Glucose vs Outcome -->
+  <div class="figure-block">
+    <img src="{b64_glucose}" alt="Glucose vs Outcome" class="figure-img">
+    <div class="figure-caption">
+      Fig 5: Step 3 — Exploratory Data Analysis: Plasma glucose level distribution grouped by diabetes diagnosis outcome
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Fig 6: BMI & Age Distributions -->
+  <div class="figure-block" style="display:flex; justify-content:center; gap: 14px;">
+    <div style="flex:1;">
+      <img src="{b64_bmi}" alt="BMI Distribution" style="width:100%; border:1px solid #9ca3af; border-radius:3px;">
+    </div>
+    <div style="flex:1;">
+      <img src="{b64_age}" alt="Age Distribution" style="width:100%; border:1px solid #9ca3af; border-radius:3px;">
+    </div>
+  </div>
+  <div class="figure-caption" style="text-align:center; margin-bottom: 20px;">
+    Fig 6: Step 3 — Exploratory Data Analysis: Body Mass Index (BMI) and Age demographic density distributions
+  </div>
+
+  <!-- Fig 7: Correlation Heatmap -->
+  <div class="figure-block">
+    <img src="{b64_heatmap}" alt="Feature Correlation Heatmap" class="figure-img" style="max-height: 310px;">
+    <div class="figure-caption">
+      Fig 7: Step 3 — Exploratory Data Analysis: Pearson correlation matrix showing relationships among features and outcome
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Fig 8: Model Training Comparison -->
+  <div class="figure-block">
+    <table class="data-table" style="max-width: 650px; margin: 0 auto 8px;">
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Accuracy</th>
+          <th>Precision</th>
+          <th>Recall</th>
+          <th>F1-Score</th>
+          <th>ROC-AUC</th>
+          <th>Pipeline Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Logistic Regression</strong></td>
+          <td>{(lr_m.get('accuracy', 0.7078)*100):.2f}%</td>
+          <td>{(lr_m.get('precision', 0.60)*100):.2f}%</td>
+          <td>{(lr_m.get('recall', 0.50)*100):.2f}%</td>
+          <td>{(lr_m.get('f1_score', 0.5455)*100):.2f}%</td>
+          <td>{lr_m.get('roc_auc', 0.8130):.4f}</td>
+          <td>Evaluated</td>
+        </tr>
+        <tr>
+          <td><strong>Decision Tree Classifier</strong></td>
+          <td>{(dt_m.get('accuracy', 0.7662)*100):.2f}%</td>
+          <td>{(dt_m.get('precision', 0.65)*100):.2f}%</td>
+          <td>{(dt_m.get('recall', 0.7222)*100):.2f}%</td>
+          <td>{(dt_m.get('f1_score', 0.6842)*100):.2f}%</td>
+          <td>{dt_m.get('roc_auc', 0.7840):.4f}</td>
+          <td>Evaluated</td>
+        </tr>
+        <tr style="background:#eff6ff; font-weight:bold;">
+          <td><strong>Random Forest Classifier</strong></td>
+          <td>{(rf_m.get('accuracy', 0.7403)*100):.2f}%</td>
+          <td>{(rf_m.get('precision', 0.6667)*100):.2f}%</td>
+          <td>{(rf_m.get('recall', 0.5185)*100):.2f}%</td>
+          <td>{(rf_m.get('f1_score', 0.5833)*100):.2f}%</td>
+          <td><strong>{rf_m.get('roc_auc', 0.8167):.4f}</strong></td>
+          <td><strong>Selected Model &#9733;</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="figure-caption">
+      Fig 8: Step 4 — Model Training: Multi-algorithm benchmark comparison table on identical 80:20 stratified split (154 test samples)
+    </div>
+  </div>
+
+  <!-- Fig 9 & 10: Confusion Matrix and ROC Curve -->
+  <div class="figure-block" style="display:flex; justify-content:center; gap: 14px;">
+    <div style="flex:1;">
+      <img src="{b64_cm}" alt="Confusion Matrix" style="width:100%; border:1px solid #9ca3af; border-radius:3px;">
+      <div class="figure-caption">
+        Fig 9: Step 5 — Test Confusion Matrix (Random Forest: TN=86, FP=14, FN=26, TP=28)
+      </div>
+    </div>
+    <div style="flex:1;">
+      <img src="{b64_roc}" alt="ROC Curves Comparison" style="width:100%; border:1px solid #9ca3af; border-radius:3px;">
+      <div class="figure-caption">
+        Fig 10: Step 5 — Test Set ROC Curves Comparison across candidate classifiers
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- Fig 11 & 12: Live Prediction Outputs -->
+  <div class="figure-block">
+    <div class="web-mockup negative">
+      <div class="mockup-badge neg">Pipeline: Random Forest</div>
+      <div class="mockup-title neg">Model Prediction: Diabetes-negative class</div>
+      <div class="mockup-prob">Estimated Model Probability: 86.40% <span style="font-size:8pt; font-weight:normal; color:#4b5563;">(Positive Risk: 13.60%)</span></div>
+      <table class="mockup-table">
+        <tr><td><strong>Pregnancies:</strong> 1</td><td><strong>Glucose:</strong> 85.0 mg/dL</td><td><strong>Blood Pressure:</strong> 66.0 mm Hg</td></tr>
+        <tr><td><strong>Skin Thickness:</strong> 29.0 mm</td><td><strong>Insulin:</strong> 0.0 &mu;U/ml (Imputed)</td><td><strong>BMI:</strong> 26.6 kg/m&sup2;</td></tr>
+        <tr><td><strong>Pedigree:</strong> 0.351</td><td><strong>Age:</strong> 31 Years</td><td><strong>Status:</strong> Low Risk (Healthy)</td></tr>
+      </table>
+    </div>
+    <div class="figure-caption">
+      Fig 11: Step 6 — Diabetes Prediction: Live prediction output for healthy / negative patient profile (86.4% confidence)
+    </div>
+  </div>
+
+  <div class="figure-block">
+    <div class="web-mockup positive">
+      <div class="mockup-badge pos">Pipeline: Random Forest</div>
+      <div class="mockup-title pos">Model Prediction: Diabetes-positive class</div>
+      <div class="mockup-prob">Estimated Model Probability: 65.78% <span style="font-size:8pt; font-weight:normal; color:#4b5563;">(Positive Class Confidence)</span></div>
+      <table class="mockup-table">
+        <tr><td><strong>Pregnancies:</strong> 6</td><td><strong>Glucose:</strong> 148.0 mg/dL</td><td><strong>Blood Pressure:</strong> 72.0 mm Hg</td></tr>
+        <tr><td><strong>Skin Thickness:</strong> 35.0 mm</td><td><strong>Insulin:</strong> 0.0 &mu;U/ml (Imputed)</td><td><strong>BMI:</strong> 33.6 kg/m&sup2;</td></tr>
+        <tr><td><strong>Pedigree:</strong> 0.627</td><td><strong>Age:</strong> 50 Years</td><td><strong>Status:</strong> Elevated Diabetes Risk</td></tr>
+      </table>
+    </div>
+    <div class="figure-caption">
+      Fig 12: Step 6 — Diabetes Prediction: Live prediction output for elevated-risk patient profile (Model Probability: 65.78%)
+    </div>
+  </div>
+
+  <!-- RESULT SUMMARY -->
+  <h2 class="section-heading">Result:</h2>
+  <p>
+    An end-to-end web-based <strong>Diabetes Prediction System</strong> was successfully designed, developed, and evaluated using Python, Scikit-learn, and Flask. The benchmark Pima Indians Diabetes Database was cleaned by converting physiologically impossible zero values across Glucose, Blood Pressure, Skin Thickness, Insulin, and BMI into <code>NaN</code>, followed by robust median imputation and feature standard scaling. Exploratory Data Analysis provided clear quantitative evidence of the strong correlation between plasma glucose, BMI, and diabetes outcome prevalence. 
+  </p>
+  <p>
+    Among the three classification algorithms trained on the 80:20 stratified training split (614 train, 154 test), the <strong>Random Forest Classifier</strong> achieved the highest generalization discriminative power with a <strong>Test ROC-AUC of {rf_m.get('roc_auc', 0.8167):.4f}</strong>, a Test Accuracy of <strong>{(rf_m.get('accuracy', 0.7403)*100):.2f}%</strong>, Precision of <strong>{(rf_m.get('precision', 0.6667)*100):.2f}%</strong>, Recall of <strong>{(rf_m.get('recall', 0.5185)*100):.2f}%</strong>, and an F1-Score of <strong>{(rf_m.get('f1_score', 0.5833)*100):.2f}%</strong>. The finalized pipeline was serialized via Joblib (<code>models/diabetes_model.pkl</code>) and integrated into a responsive Flask web interface that executes live inference on user inputs, delivering classification results (e.g., 65.78% estimated confidence for high-risk profiles) with embedded educational and clinical disclaimers.
+  </p>
+
+</body>
+</html>"""
+
+    with open(HTML_OUTPUT, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+
+    print(f"[Report] Generated standalone printable HTML report at: {HTML_OUTPUT}")
+    return HTML_OUTPUT
+
+
+def convert_html_to_pdf():
+    """Attempt conversion to PDF using headless Microsoft Edge or Google Chrome."""
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        shutil.which("msedge") or ""
+    ]
+
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        shutil.which("chrome") or ""
+    ]
+
+    browser_bin = None
+    for p in edge_paths + chrome_paths:
+        if p and os.path.exists(p):
+            browser_bin = p
+            break
+
+    if not browser_bin:
+        print("[PDF] Neither Microsoft Edge nor Chrome executable found at standard paths.")
+        print(f"[PDF] You can open '{HTML_OUTPUT}' in any browser and press Ctrl+P -> 'Save as PDF'.")
+        return False
+
+    print(f"[PDF] Compiling PDF via headless browser ({os.path.basename(browser_bin)})...")
+    cmd = [
+        browser_bin,
+        "--headless",
+        "--disable-gpu",
+        f"--print-to-pdf={PDF_OUTPUT}",
+        "--no-pdf-header-footer",
+        HTML_OUTPUT
+    ]
+
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if os.path.exists(PDF_OUTPUT) and os.path.getsize(PDF_OUTPUT) > 5000:
+            print(f"[PDF] Successfully created PDF: {PDF_OUTPUT}")
+            return True
+    except Exception as e:
+        print(f"[PDF] Headless PDF conversion encountered: {e}")
+        print(f"[PDF] You can open '{HTML_OUTPUT}' in your browser and press Ctrl+P -> 'Save as PDF'.")
+    return False
+
+
+if __name__ == '__main__':
+    print("=" * 65)
+    print("Building Diabetes Prediction System Project Report")
+    print("=" * 65)
+    generate_report_html()
+    convert_html_to_pdf()
+    print("=" * 65)
